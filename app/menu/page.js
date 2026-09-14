@@ -9,7 +9,7 @@ import MenuCard from "@/components/MenuCard";
 export default function MenuPage() {
   const [menu, setMenu] = useState([]);
   const [menuError, setMenuError] = useState(null);
-  const [visibleCount, setVisibleCount] = useState(5);
+  const [visibleCount, setVisibleCount] = useState(2);
   const [cart, setCart] = useState({});
   const [cartLoaded, setCartLoaded] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
