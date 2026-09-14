@@ -7,6 +7,7 @@ import Header from "@/components/Header";
 import MenuCard from "@/components/MenuCard";
 
 export default function MenuPage() {
+  const itemsPerLoad = 2;
   const [menu, setMenu] = useState([]);
   const [menuError, setMenuError] = useState(null);
   const [visibleCount, setVisibleCount] = useState(2);
@@ -175,7 +176,11 @@ export default function MenuPage() {
           <div className="menu-more">
             <button
               className="btn secondary"
-              onClick={() => setVisibleCount((count) => count + 10)}
+              onClick={() =>
+                setVisibleCount((count) =>
+                  Math.min(count + itemsPerLoad, menu.length)
+                )
+              }
             >
               Show more
             </button>
