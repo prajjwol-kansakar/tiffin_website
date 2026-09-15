@@ -6,74 +6,40 @@
 
 export const SAMPLE_MENU = [
   {
-    id: "classic-veg-tiffin",
-    name: "Classic Veg Tiffin",
+    id: "veg-momo",
+    name: "Veg Momo",
     description:
-      "Dal, seasonal sabzi, 4 rotis, rice and salad — the everyday home-style favourite.",
-    price: 8.99,
+      "Steamed or fried vegetable dumplings with a spicy sauce — a popular street food favourite.",
+    price: 6.99,
     tag: "Bestseller",
     image: "https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=900&q=85",
   },
   {
-    id: "deluxe-veg-tiffin",
-    name: "Deluxe Veg Tiffin",
+    id: "chicken-momo",
+    name: "Chicken Momo",
     description:
-      "Classic tiffin plus paneer dish, raita and a sweet of the day.",
-    price: 11.99,
-    tag: "Popular",
-    image: "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=900&q=85",
-  },
-  {
-    id: "chicken-tiffin",
-    name: "Chicken Tiffin",
-    description:
-      "Home-style chicken curry, dal, 4 rotis, rice and salad.",
-    price: 12.99,
+      "Juicy chicken dumplings steamed fresh and served with a spicy tomato chutney.",
+    price: 8.99,
     tag: "Non-veg",
-    image: "https://images.unsplash.com/photo-1603894584373-5ac82b2ae398?auto=format&fit=crop&w=900&q=85",
+    image: "https://images.unsplash.com/photo-1626804475297-41608ea09aeb?auto=format&fit=crop&w=900&q=85",
   },
   {
-    id: "weekly-plan",
-    name: "Weekly Plan (5 days)",
+    id: "beef-momo",
+    name: "Beef Momo",
     description:
-      "One classic veg tiffin delivered every weekday for a week. Prepay and save.",
-    price: 54.99,
-    tag: "Plan",
-    image: "https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=900&q=85",
+      "Tender seasoned beef dumplings steamed fresh and paired with spicy chutney.",
+    price: 9.99,
+    tag: "Non-veg",
+    image: "https://images.unsplash.com/photo-1496116218417-1a781b1c416c?auto=format&fit=crop&w=900&q=85",
   },
   {
-    id: "monthly-plan",
-    name: "Monthly Plan (20 days)",
+    id: "sel-roti",
+    name: "Sel Roti",
     description:
-      "One classic veg tiffin every weekday for a month. Best value for regulars.",
-    price: 199.99,
-    tag: "Plan",
-    image: "https://images.unsplash.com/photo-1505253716362-afaea1d3d1af?auto=format&fit=crop&w=900&q=85",
-  },
-  {
-    id: "extra-roti-pack",
-    name: "Extra Roti Pack",
-    description: "Pack of 6 fresh, soft whole-wheat rotis to add to any tiffin.",
-    price: 2.49,
-    tag: "Add-on",
-    image: "https://images.unsplash.com/photo-1610192244261-3f33de3f55e4?auto=format&fit=crop&w=900&q=85",
-  },
-  {
-    id: "extra-sabzi",
-    name: "Extra Sabzi Portion",
-    description: "An extra serving of the day's seasonal vegetable sabzi.",
-    price: 3.49,
-    tag: "Add-on",
-    image: "https://images.unsplash.com/photo-1601050690117-94f5f6fa8bd7?auto=format&fit=crop&w=900&q=85",
-  },
-  {
-    id: "paneer-tiffin",
-    name: "Paneer Tiffin",
-    description:
-      "Paneer butter masala, dal, 4 rotis, rice and salad — a vegetarian treat.",
-    price: 11.49,
-    tag: "Veg",
-    image: "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?auto=format&fit=crop&w=900&q=85",
+      "Traditional Nepali ring-shaped rice bread, crisp outside and soft inside.",
+    price: 4.99,
+    tag: "Traditional",
+    image: "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=900&q=85",
   },
 ];
 
