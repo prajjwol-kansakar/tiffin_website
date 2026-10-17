@@ -4,7 +4,7 @@ export default function Header({ cartCount, onCart, showBackHome = false }) {
   return (
     <header className="site-header">
       <a className="brand" href="/">
-       AUTHENTIC FOODS
+       AUTHENTIC TAKE
       </a>
       <div className="menu-header-actions">
         <button className="cart-btn" onClick={onCart}>
