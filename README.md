@@ -1,8 +1,7 @@
 # A Fresh Home Made Tiffin — Tiffin Ordering Website
 
 A single-page tiffin ordering website built with **Next.js (App Router)** and
-**MongoDB**. Works out of the box in demo mode (no database required), and
-stores menus and orders in MongoDB when configured.
+backend APIs for authentication, products, and order submission.
 
 ## Quick start
 
@@ -12,9 +11,9 @@ stores menus and orders in MongoDB when configured.
    npm install
    ```
 
-2. (Optional) Connect MongoDB. Copy `.env.example` to `.env` and set
-   `MONGODB_URI`. Without it, the app runs in demo mode with a clearly
-   labelled sample menu.
+2. Copy `.env.example` to `.env` and configure the backend login, product,
+   and order URLs. If the product URL is unset, the app uses a clearly labelled
+   sample menu.
 
 3. Run the dev server:
 
@@ -33,39 +32,37 @@ npm run start
 
 ## How it works
 
-- `GET /api/menu` — returns menu items. Reads the `menus` collection in
-  MongoDB when connected; otherwise falls back to `data/sampleMenu.js`
-  (clearly labelled sample data in USD, meant to be replaced).
-- `POST /api/orders` — accepts
-  `{ name, phone, address, items, total, deliveryDate }`, validates input,
-  inserts into the `orders` collection when MongoDB is configured, and
-  returns `{ ok, orderId, stored }`. In demo mode it still returns an order
-  id with `stored: false` so the full flow can be tried.
+- `GET /api/product` — fetches products anonymously from the configured
+  `/api/Product?pageNumber=...&pageSize=...&searchTerms=...` endpoint, and
+  falls back to `data/sampleMenu.js` when no product API is configured.
+- `GET /api/auth/session` — reports whether the browser has a valid sign-in
+  cookie so checkout can decide whether to open the sign-in modal.
+- `POST /api/auth/login` — forwards username/password to the configured
+  authentication endpoint and stores the returned access token in an
+  HTTP-only cookie.
+- `POST /api/orders` — requires that sign-in cookie and forwards the
+  `SORDER` payload to the configured sales-order endpoint.
 
-Checkout is a **demo — no real payment is taken**. The checkout screen is an
-order summary with a clear demo banner; wire up Stripe or PayPal next:
+Set `BACKEND_LOGIN_URL`, `BACKEND_ORDER_URL`, and `BACKEND_PRODUCT_URL` in
+`.env` (see `.env.example`). The provided example uses the local backend
+address; use an address reachable from the Next.js server in your deployment.
+The order payload uses `B1`, year `26/27`, the signed-in username for `cust_code`,
+and null vendor/reference values. Order lines are sent in `SalesOrderProd`,
+mapping menu `id`/`name` to `scode`/`product_name`. The order line's required
+`unit` comes from the menu item's `base_unit`, and `warehouse` defaults to
+`W-1` when the item doesn't provide one. Customer name, phone, delivery address,
+and optional delivery date are included in `notes`.
 
-- **Stripe:** create a business account, then add
-  [Stripe Checkout](https://stripe.com/docs/payments/checkout) or Payment
-  Links. The cleanest path is replacing the "Place Order" submit with a
-  server-side call to the Stripe API that creates a Checkout Session and
-  redirects the customer to it.
-- **PayPal:** create a business account and use
-  [PayPal Checkout / Smart Buttons](https://developer.paypal.com/docs/checkout/standard/integrate/)
-  or a Payment Link button on the checkout screen.
+Checkout submits the order to the backend; payment is not collected by this
+website. The login response's access token is kept in an HTTP-only cookie and
+is never exposed to browser JavaScript.
 
 ## Deploying to Vercel
 
 1. Push this folder to a Git repository.
 2. Import the repository in the Vercel dashboard.
-3. Add the `MONGODB_URI` environment variable in the project settings
-   (skip this for demo mode).
+3. Set `BACKEND_LOGIN_URL`, `BACKEND_ORDER_URL`, and `BACKEND_PRODUCT_URL` in
+   the project settings. Ensure the backend is reachable from the deployed
+   Next.js server.
 4. Deploy. Vercel auto-detects Next.js; the default build command
    `npm run build` just works.
-
-## MongoDB notes
-
-- Database: defaults to the DB in the connection string (e.g. `fresh_tiffin`).
-- Collections used: `menus` (menu items) and `orders` (placed orders).
-- Seed a real menu by inserting documents shaped like:
-  `{ id, name, description, price, tag }` into the `menus` collection.

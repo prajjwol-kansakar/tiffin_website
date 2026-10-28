@@ -22,9 +22,9 @@ export default function CheckoutDrawer({
         </header>
         <div className="items">
           <div className="demo-banner">
-            <strong>Demo checkout — no real payment taken.</strong>
+            <strong>No online payment is taken.</strong>
             <br />
-            This is an order summary only.
+            Sign in to continue to checkout and send your order to our kitchen.
           </div>
           <div className="order-summary">
             <h3>Order Summary</h3>
@@ -46,7 +46,7 @@ export default function CheckoutDrawer({
               id="checkout-name"
               value={form.name}
               onChange={(event) => onChange("name", event.target.value)}
-              placeholder="e.g. Prajjwol Kansakar"
+              placeholder="Full Name"
             />
             <label htmlFor="checkout-phone">Phone</label>
             <input

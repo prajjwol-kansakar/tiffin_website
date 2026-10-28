@@ -1,7 +1,6 @@
 // ============================================================================
 // SAMPLE MENU — demo data only. Replace with your real menu.
-// Tip: to serve a live menu, set MONGODB_URI and seed documents in the
-// `menus` collection with the same shape: { id, name, description, price, tag, image }.
+// Configure BACKEND_PRODUCT_URL to load live products from the product API.
 // ============================================================================
 
 export const SAMPLE_MENU = [

@@ -5,14 +5,16 @@ import CartDrawer from "@/components/CartDrawer";
 import CheckoutDrawer from "@/components/CheckoutDrawer";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
+import LoginModal from "@/components/LoginModal";
 import MenuCard from "@/components/MenuCard";
-
-const money = (n) => `$${Number(n).toFixed(2)}`;
+import OrderConfirmationModal from "@/components/OrderConfirmationModal";
+import { createOrderPayload } from "@/lib/createOrderPayload";
 
 export default function HomePage() {
   const [menu, setMenu] = useState([]);
   const [menuSource, setMenuSource] = useState(null);
   const [menuError, setMenuError] = useState(null);
+  const [menuHasMore, setMenuHasMore] = useState(false);
   const [cart, setCart] = useState({}); // id -> { item, qty }
   const [cartLoaded, setCartLoaded] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
@@ -20,15 +22,19 @@ export default function HomePage() {
   const [form, setForm] = useState({ name: "", phone: "", address: "", deliveryDate: "" });
   const [formError, setFormError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [checkingCheckout, setCheckingCheckout] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
   const [confirmed, setConfirmed] = useState(null); // { orderId, stored }
+  const [orderConfirmationOpen, setOrderConfirmationOpen] = useState(false);
 
   useEffect(() => {
-    fetch("/api/menu")
-      .then((r) => r.json())
-      .then((data) => {
+    fetch("/api/product?pageNumber=1&pageSize=10&searchTerms=%25")
+      .then(async (response) => {
+        const data = await response.json();
         if (data.ok) {
           setMenu(data.items || []);
           setMenuSource(data.source || null);
+          setMenuHasMore(Boolean(data.hasMore));
         } else {
           setMenuError("Could not load the menu.");
         }
@@ -65,6 +71,24 @@ export default function HomePage() {
 
   useEffect(() => {
     if (cartLoaded && cartItems.length > 0 && window.location.search.includes("checkout=true")) {
+      const savedForm = window.sessionStorage.getItem("tiffin-checkout-form");
+      if (savedForm) {
+        try {
+          const parsedForm = JSON.parse(savedForm);
+          if (
+            parsedForm &&
+            typeof parsedForm.name === "string" &&
+            typeof parsedForm.phone === "string" &&
+            typeof parsedForm.address === "string" &&
+            typeof parsedForm.deliveryDate === "string"
+          ) {
+            setForm(parsedForm);
+          }
+        } catch {
+          setFormError("Your saved checkout details could not be restored.");
+        }
+        window.sessionStorage.removeItem("tiffin-checkout-form");
+      }
       setCheckoutOpen(true);
       window.history.replaceState({}, "", window.location.pathname);
     }
@@ -88,10 +112,26 @@ export default function HomePage() {
     });
   };
 
-  const openCheckout = () => {
-    setCheckoutOpen(true);
-    setCartOpen(false);
+  const openCheckout = async () => {
     setFormError(null);
+    setCheckingCheckout(true);
+    try {
+      const sessionResponse = await fetch("/api/auth/session", {
+        cache: "no-store",
+      });
+      const session = await sessionResponse.json();
+      if (!session.authenticated) {
+        setLoginOpen(true);
+        return;
+      }
+
+      setCheckoutOpen(true);
+      setCartOpen(false);
+    } catch {
+      setFormError("Could not verify your sign-in. Please try again.");
+    } finally {
+      setCheckingCheckout(false);
+    }
   };
 
   const submitOrder = async (e) => {
@@ -103,37 +143,43 @@ export default function HomePage() {
       return;
     }
 
+    setOrderConfirmationOpen(true);
+  };
+
+  const confirmOrder = async () => {
     setSubmitting(true);
+    setFormError(null);
     try {
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: form.name,
-          phone: form.phone,
-          address: form.address,
-          deliveryDate: form.deliveryDate,
-          items: cartItems.map((c) => ({
-            id: c.item.id,
-            name: c.item.name,
-            qty: c.qty,
-            price: c.item.price,
-          })),
-          total: Math.round(cartTotal * 100) / 100,
-        }),
+        body: JSON.stringify(createOrderPayload(form, cartItems)),
       });
-      const data = await res.json();
-      if (data.ok) {
+      const responseText = await res.text();
+      let data = {};
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        data = { message: responseText };
+      }
+      if (res.status === 401) {
+        setOrderConfirmationOpen(false);
+        setLoginOpen(true);
+        return;
+      }
+      if (res.ok && data.ok !== false && data.success !== false) {
+        setOrderConfirmationOpen(false);
         setConfirmed({
-          orderId: data.orderId,
-          stored: data.stored,
+          orderId: data.orderId ?? data.id ?? null,
           name: form.name.trim(),
         });
         setCart({});
         setCheckoutOpen(false);
         window.scrollTo({ top: 0, behavior: "smooth" });
       } else {
-        setFormError(data.error || "Something went wrong placing your order.");
+        setFormError(
+          data.error || data.message || "Something went wrong placing your order."
+        );
       }
     } catch {
       setFormError("Could not reach the server. Please try again.");
@@ -153,12 +199,10 @@ export default function HomePage() {
             Your tiffin is being packed with love. We&apos;ll call you shortly to
             confirm delivery.
           </p>
-          <div className="order-id">Order ID: {confirmed.orderId}</div>
-          <p>
-            {confirmed.stored
-              ? "Your order was saved by our kitchen team."
-              : "Demo mode: this order was not saved to a database (demo checkout)."}
-          </p>
+          {confirmed.orderId && (
+            <div className="order-id">Order ID: {confirmed.orderId}</div>
+          )}
+          <p>Your order was sent to our kitchen team.</p>
           <button
             className="btn secondary"
             onClick={() => {
@@ -234,28 +278,10 @@ export default function HomePage() {
         <div className="menu-preview">
           <div className="menu-grid menu-preview-grid">
             {menu.slice(0, 4).map((item) => (
-              <div className="menu-card" key={item.id}>
-                {item.image && (
-                  <img
-                    className="menu-card-image"
-                    src={item.image}
-                    alt={item.name}
-                    loading="lazy"
-                  />
-                )}
-                {item.tag && <span className="tag">{item.tag}</span>}
-                <h3>{item.name}</h3>
-                <p>{item.description}</p>
-                <div className="row">
-                  <span className="price">{money(item.price)}</span>
-                  <button className="add-btn" onClick={() => addToCart(item)}>
-                    Add +
-                  </button>
-                </div>
-              </div>
+              <MenuCard item={item} onAdd={addToCart} key={item.id} />
             ))}
           </div>
-          {menu.length > 4 && (
+          {menuHasMore && (
             <div className="menu-more">
               <a href="/menu" className="btn secondary">
                 Show more <span aria-hidden="true">→</span>
@@ -289,6 +315,7 @@ export default function HomePage() {
           onSetQty={setQty}
           onClose={() => setCartOpen(false)}
           onCheckout={openCheckout}
+          checkoutLoading={checkingCheckout}
         />
       )}
 
@@ -302,6 +329,24 @@ export default function HomePage() {
           onChange={(field, value) => setForm({ ...form, [field]: value })}
           onClose={() => setCheckoutOpen(false)}
           onSubmit={submitOrder}
+        />
+      )}
+      {orderConfirmationOpen && (
+        <OrderConfirmationModal
+          submitting={submitting}
+          error={formError}
+          onConfirm={confirmOrder}
+          onCancel={() => setOrderConfirmationOpen(false)}
+        />
+      )}
+      {loginOpen && (
+        <LoginModal
+          onSuccess={() => {
+            setLoginOpen(false);
+            setCheckoutOpen(true);
+            setCartOpen(false);
+          }}
+          onClose={() => setLoginOpen(false)}
         />
       )}
     </>

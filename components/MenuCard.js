@@ -4,12 +4,14 @@ export default function MenuCard({ item, onAdd }) {
   return (
     <article className="menu-card">
       {item.image && (
-        <img
-          className="menu-card-image"
-          src={item.image}
-          alt={item.name}
-          loading="lazy"
-        />
+        <div className="menu-card-image-frame">
+          <img
+            className="menu-card-image"
+            src={item.image}
+            alt={item.name}
+            loading="lazy"
+          />
+        </div>
       )}
       {item.tag && <span className="tag">{item.tag}</span>}
       <h3>{item.name}</h3>

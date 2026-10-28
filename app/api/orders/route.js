@@ -1,14 +1,38 @@
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/mongodb";
 
-function isNonEmptyString(v) {
-  return typeof v === "string" && v.trim().length > 0;
+function isValidOrder(order) {
+  return (
+    order &&
+    typeof order === "object" &&
+    Array.isArray(order.SalesOrderProd) &&
+    order.SalesOrderProd.length > 0 &&
+    order.SalesOrderProd.every(
+      (item) =>
+        item &&
+        typeof item.scode === "string" &&
+        typeof item.unit === "string" &&
+        item.unit.trim().length > 0 &&
+        Number.isFinite(item.rate) &&
+        Number.isInteger(item.quantity) &&
+        item.quantity > 0
+    )
+  );
 }
 
 export async function POST(request) {
-  let body;
+  const cookieStore = await cookies();
+  const token = cookieStore.get("tiffin_access_token")?.value;
+  if (!token) {
+    return NextResponse.json(
+      { ok: false, error: "Please sign in before placing your order." },
+      { status: 401 }
+    );
+  }
+
+  let order;
   try {
-    body = await request.json();
+    order = await request.json();
   } catch {
     return NextResponse.json(
       { ok: false, error: "Request body must be valid JSON." },
@@ -16,75 +40,53 @@ export async function POST(request) {
     );
   }
 
-  const { name, phone, address, items, total, deliveryDate } = body ?? {};
-
-  // ---- validation ----
-  if (!isNonEmptyString(name)) {
-    return NextResponse.json({ ok: false, error: "Name is required." }, { status: 400 });
-  }
-  if (!isNonEmptyString(phone)) {
-    return NextResponse.json({ ok: false, error: "Phone is required." }, { status: 400 });
-  }
-  if (!isNonEmptyString(address)) {
-    return NextResponse.json({ ok: false, error: "Delivery address is required." }, { status: 400 });
-  }
-  if (!Array.isArray(items) || items.length === 0) {
-    return NextResponse.json({ ok: false, error: "Cart is empty." }, { status: 400 });
-  }
-  for (const it of items) {
-    if (
-      !it ||
-      !isNonEmptyString(it.id) ||
-      !isNonEmptyString(it.name) ||
-      typeof it.price !== "number" ||
-      !(Number.isInteger(it.qty) && it.qty > 0)
-    ) {
-      return NextResponse.json(
-        { ok: false, error: "Each item needs an id, name, numeric price and a positive quantity." },
-        { status: 400 }
-      );
-    }
-  }
-  if (typeof total !== "number" || total <= 0) {
-    return NextResponse.json({ ok: false, error: "Total must be a positive number." }, { status: 400 });
+  if (!isValidOrder(order)) {
+    return NextResponse.json(
+      { ok: false, error: "Order must contain at least one valid product." },
+      { status: 400 }
+    );
   }
 
-  const order = {
-    name: name.trim(),
-    phone: phone.trim(),
-    address: address.trim(),
-    items: items.map((it) => ({
-      id: it.id,
-      name: it.name,
-      qty: it.qty,
-      price: it.price,
-    })),
-    total,
-    deliveryDate: isNonEmptyString(deliveryDate) ? deliveryDate.trim() : null,
-    paymentStatus: "demo — no payment taken",
-    createdAt: new Date(),
-  };
+  const orderUrl = process.env.BACKEND_ORDER_URL;
+  if (!orderUrl) {
+    return NextResponse.json(
+      { ok: false, error: "The order service is not configured." },
+      { status: 503 }
+    );
+  }
 
-  // ---- persist when MongoDB is configured ----
   try {
-    const db = await getDb();
-    if (db) {
-      const result = await db.collection("orders").insertOne(order);
-      return NextResponse.json({
-        ok: true,
-        orderId: String(result.insertedId),
-        stored: true,
-      });
-    }
-  } catch (err) {
-    console.error("POST /api/orders failed to store order:", err.message);
-    // fall through to demo response
-  }
+    const backendResponse = await fetch(orderUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        ...order,
+        cust_code: cookieStore.get("tiffin_username")?.value ?? "",
+        user_nm: cookieStore.get("tiffin_username")?.value ?? "",
+      }),
+      cache: "no-store",
+    });
+    const responseBody = await backendResponse.text();
 
-  // ---- demo mode: no database configured ----
-  return NextResponse.json({
-    ok: true,
-    orderId: `demo-${Date.now()}`,
-    stored: false,
-  });
+    if (backendResponse.status === 204) {
+      return new Response(null, { status: 204 });
+    }
+
+    return new Response(responseBody, {
+      status: backendResponse.status,
+      headers: {
+        "Content-Type":
+          backendResponse.headers.get("content-type") ?? "application/json",
+      },
+    });
+  } catch (error) {
+    console.error("POST /api/orders could not reach the order service:", error);
+    return NextResponse.json(
+      { ok: false, error: "Could not reach the order service. Please try again." },
+      { status: 502 }
+    );
+  }
 }

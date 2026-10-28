@@ -7,6 +7,7 @@ export default function CartDrawer({
   onSetQty,
   onClose,
   onCheckout,
+  checkoutLoading,
 }) {
   return (
     <>
@@ -46,8 +47,13 @@ export default function CartDrawer({
               <span>Total</span>
               <span>{money(cartTotal)}</span>
             </div>
-            <button className="btn" style={{ width: "100%" }} onClick={onCheckout}>
-              Checkout
+            <button
+              className="btn"
+              style={{ width: "100%" }}
+              onClick={onCheckout}
+              disabled={checkoutLoading}
+            >
+              {checkoutLoading ? "Checking sign-in…" : "Checkout"}
             </button>
           </footer>
         )}
