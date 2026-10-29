@@ -1,14 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import CartDrawer from "@/components/CartDrawer";
 import CheckoutDrawer from "@/components/CheckoutDrawer";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import LoginModal from "@/components/LoginModal";
 import MenuCard from "@/components/MenuCard";
+import MenuFetcher from "@/components/MenuFetcher";
 import OrderConfirmationModal from "@/components/OrderConfirmationModal";
 import { createOrderPayload } from "@/lib/createOrderPayload";
+import { hasValidPhoneNumber } from "@/lib/phoneNumber";
+import chefPhoto from "../images/SUN_0951.jpg";
 
 export default function HomePage() {
   const [menu, setMenu] = useState([]);
@@ -17,6 +21,7 @@ export default function HomePage() {
   const [menuHasMore, setMenuHasMore] = useState(false);
   const [cart, setCart] = useState({}); // id -> { item, qty }
   const [cartLoaded, setCartLoaded] = useState(false);
+  const menuLoadFailed = useRef(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", address: "", deliveryDate: "" });
@@ -27,25 +32,25 @@ export default function HomePage() {
   const [confirmed, setConfirmed] = useState(null); // { orderId, stored }
   const [orderConfirmationOpen, setOrderConfirmationOpen] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/product?pageNumber=1&pageSize=10&searchTerms=%25")
-      .then(async (response) => {
-        const data = await response.json();
-        if (data.ok) {
-          setMenu(data.items || []);
-          setMenuSource(data.source || null);
-          setMenuHasMore(Boolean(data.hasMore));
-        } else {
-          setMenuError("Could not load the menu.");
-        }
-      })
-      .catch(() => setMenuError("Could not load the menu."));
+  const handleMenuLoaded = useCallback((data) => {
+    setMenu(data.items || []);
+    setMenuSource(data.source || null);
+    setMenuHasMore(Boolean(data.hasMore));
+    setMenuError(null);
+  }, []);
+  const handleMenuLoadFailure = useCallback(() => {
+    menuLoadFailed.current = true;
+    setMenuError("Could not load the menu.");
+    setCart({});
+    setCartLoaded(true);
   }, []);
 
   useEffect(() => {
     try {
-      const savedCart = window.localStorage.getItem("tiffin-cart");
-      if (savedCart) setCart(JSON.parse(savedCart));
+      if (!menuLoadFailed.current) {
+        const savedCart = window.localStorage.getItem("tiffin-cart");
+        if (savedCart) setCart(JSON.parse(savedCart));
+      }
     } catch {
       // Ignore unavailable or invalid saved cart data.
     } finally {
@@ -143,10 +148,21 @@ export default function HomePage() {
       return;
     }
 
+    if (!hasValidPhoneNumber(form.phone)) {
+      setFormError("Please enter a valid 10-digit phone number.");
+      return;
+    }
+
     setOrderConfirmationOpen(true);
   };
 
   const confirmOrder = async () => {
+    if (!hasValidPhoneNumber(form.phone)) {
+      setOrderConfirmationOpen(false);
+      setFormError("Please enter a valid 10-digit phone number.");
+      return;
+    }
+
     setSubmitting(true);
     setFormError(null);
     try {
@@ -191,12 +207,17 @@ export default function HomePage() {
   if (confirmed) {
     return (
       <>
+        <MenuFetcher
+          url="/api/product?pageNumber=1&pageSize=10&searchTerms=%25"
+          onSuccess={handleMenuLoaded}
+          onFailure={handleMenuLoadFailure}
+        />
         <Header cartCount={0} onCart={() => {}} />
         <main className="confirmation">
           <div className="check">✓</div>
           <h2>Order received — thank you, {confirmed.name || "friend"}!</h2>
           <p>
-            Your tiffin is being packed with love. We&apos;ll call you shortly to
+            Your order is being packed with love. We&apos;ll call you shortly to
             confirm delivery.
           </p>
           {confirmed.orderId && (
@@ -220,6 +241,11 @@ export default function HomePage() {
 
   return (
     <>
+      <MenuFetcher
+        url="/api/product?pageNumber=1&pageSize=10&searchTerms=%25"
+        onSuccess={handleMenuLoaded}
+        onFailure={handleMenuLoadFailure}
+      />
       <Header cartCount={cartCount} onCart={() => setCartOpen(true)} />
 
       <section className="hero">
@@ -230,14 +256,24 @@ export default function HomePage() {
         />
         <div className="hero-overlay" />
         <div className="hero-content">
-          <span className="kicker">Home-style • Fresh daily • Delivered hot</span>
-          <h1>A Fresh Home Made Tiffin</h1>
+          <span className="kicker">Homemade Food</span>
+          <h1 className="hero-title" aria-label="MADE THE WAY IT SHOULD BE">
+            {"MADE     THE WAY IT SHOULD BE".split("").map((character, index) => (
+              <span
+                aria-hidden="true"
+                className="hero-title-character"
+                key={`${character}-${index}`}
+                style={{ "--character-index": index }}
+              >
+                {character === " " ? "\u00a0" : character}
+              </span>
+            ))}
+          </h1>
           <p>
-            Ghar jaisa khana, delivered to your door. Wholesome tiffins cooked
-            fresh every morning — just like home.
+           Fresh foods, made in small batches with real ingredients and delivered to your door.
           </p>
           <a href="#menu" className="btn">
-            Order Now
+           Explore Our Menu
           </a>
         </div>
       </section>
@@ -247,18 +283,18 @@ export default function HomePage() {
         <div className="steps">
           <div className="step">
             <div className="num">1</div>
-            <h3>Pick your tiffin</h3>
-            <p>Choose from daily tiffins, plans and add-ons on the menu below.</p>
+            <h3>Choose what you love</h3>
+            <p>Browse from menu below.</p>
           </div>
           <div className="step">
             <div className="num">2</div>
             <h3>Place your order</h3>
-            <p>Add items to your cart and check out with your delivery details.</p>
+            <p>Add to cart and check out with your delivery details.</p>
           </div>
           <div className="step">
             <div className="num">3</div>
-            <h3>Enjoy at your door</h3>
-            <p>We cook fresh and deliver hot, right on time for your meal.</p>
+            <h3>Enjoy it fresh</h3>
+            <p>Arrive hot, frozen and ready to celebrate.</p>
           </div>
         </div>
       </section>
@@ -291,13 +327,38 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section id="about" className="section about-section">
+        <div className="about-story">
+          <div className="about-story-art" aria-hidden="true">
+            <Image
+              className="about-story-photo"
+              src={chefPhoto}
+              alt=""
+              fill
+              sizes="(max-width: 560px) 100vw, 35vw"
+            />
+            <span className="about-story-brand">Authentic Taste</span>
+            <p>Made with care.<br />Shared like family.</p>
+          </div>
+          <div className="about-story-content">
+            <span className="about-story-eyebrow">A little about us</span>
+            <h2>Our Story</h2>
+            <p>
+              Authentic Taste began in a home kitchen with one belief: the best
+              food is made with care, not factories. Whether it’s a weekday
+              lunch, a plate of momos or an occasional cake, we cook the way we
+              would for our own family.
+            </p>
+            <span className="about-story-accent" aria-hidden="true" />
+          </div>
+        </div>
+      </section>
+
       <section className="section">
         <div className="plans">
           <h2>Weekly &amp; Monthly Plans</h2>
           <p>
-            Eat well every day without thinking about it. Our 5-day and 20-day
-            prepaid plans deliver a fresh classic veg tiffin every weekday —
-            the easiest (and tastiest) way to do lunch.
+            Eat well every weekday without thinking about it. Choose our 5-day or 20-day prepaid plan and get a fresh classic veg tiffin at your door.
           </p>
           <a href="#menu" className="btn">
             See Plans

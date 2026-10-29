@@ -1,9 +1,9 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "A Fresh Home Made Tiffin — Order Online",
+  title: "A Fresh Home Made — Order Online",
   description:
-    "Home-style tiffin delivered fresh to your door. Browse the menu, build your order and check out online.",
+    "Home-style taste delivered fresh to your door. Browse the menu, build your order and check out online.",
 };
 
 export default function RootLayout({ children }) {

@@ -1,3 +1,5 @@
+import { formatPhoneNumber } from "@/lib/phoneNumber";
+
 const money = (n) => `$${Number(n).toFixed(2)}`;
 
 export default function CheckoutDrawer({
@@ -24,7 +26,7 @@ export default function CheckoutDrawer({
           <div className="demo-banner">
             <strong>No online payment is taken.</strong>
             <br />
-            Sign in to continue to checkout and send your order to our kitchen.
+            Fill in your details to checkout and send your order to our kitchen.
           </div>
           <div className="order-summary">
             <h3>Order Summary</h3>
@@ -51,8 +53,13 @@ export default function CheckoutDrawer({
             <label htmlFor="checkout-phone">Phone</label>
             <input
               id="checkout-phone"
+              type="tel"
+              inputMode="numeric"
+              maxLength={14}
               value={form.phone}
-              onChange={(event) => onChange("phone", event.target.value)}
+              onChange={(event) =>
+                onChange("phone", formatPhoneNumber(event.target.value))
+              }
               placeholder="e.g. (555) 123-4567"
             />
             <label htmlFor="checkout-address">Delivery address</label>

@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import CartDrawer from "@/components/CartDrawer";
 import CheckoutDrawer from "@/components/CheckoutDrawer";
 import Header from "@/components/Header";
 import LoginModal from "@/components/LoginModal";
 import MenuCard from "@/components/MenuCard";
+import MenuFetcher from "@/components/MenuFetcher";
 import OrderConfirmationModal from "@/components/OrderConfirmationModal";
 import { createOrderPayload } from "@/lib/createOrderPayload";
+import { hasValidPhoneNumber } from "@/lib/phoneNumber";
 
 const MENU_PAGE_SIZE = 4;
 
@@ -26,6 +28,7 @@ export default function MenuPage() {
   const menuRequestId = useRef(0);
   const [cart, setCart] = useState({});
   const [cartLoaded, setCartLoaded] = useState(false);
+  const menuLoadFailed = useRef(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", address: "", deliveryDate: "" });
@@ -36,30 +39,24 @@ export default function MenuPage() {
   const [confirmed, setConfirmed] = useState(null);
   const [orderConfirmationOpen, setOrderConfirmationOpen] = useState(false);
 
-  useEffect(() => {
-    const requestId = ++menuRequestId.current;
-    fetch(`/api/product?pageNumber=1&pageSize=${MENU_PAGE_SIZE}&searchTerms=%25`)
-      .then(async (response) => {
-        const data = await response.json();
-        if (requestId !== menuRequestId.current) return;
-        if (data.ok) {
-          setMenu(data.items || []);
-          setMenuSource(data.source || null);
-          setHasMore(Boolean(data.hasMore));
-        } else {
-          setMenuError(data.error || "Could not load the menu.");
-        }
-      })
-      .catch(() => {
-        if (requestId === menuRequestId.current) {
-          setMenuError("Could not load the menu.");
-        }
-      })
-      .finally(() => {
-        if (requestId === menuRequestId.current) setMenuLoading(false);
-      });
+  const handleInitialMenuLoaded = useCallback((data) => {
+    if (searchChanged.current) return;
+    setMenu(data.items || []);
+    setMenuSource(data.source || null);
+    setHasMore(Boolean(data.hasMore));
+    setMenuError(null);
   }, []);
-
+  const handleInitialMenuFailure = useCallback(() => {
+    menuLoadFailed.current = true;
+    if (!searchChanged.current) {
+      setMenuError("Could not load the menu.");
+    }
+    setCart({});
+    setCartLoaded(true);
+  }, []);
+  const handleInitialMenuFinished = useCallback(() => {
+    if (!searchChanged.current) setMenuLoading(false);
+  }, []);
   useEffect(() => {
     if (!searchChanged.current) return;
 
@@ -132,8 +129,10 @@ export default function MenuPage() {
 
   useEffect(() => {
     try {
-      const savedCart = window.localStorage.getItem("tiffin-cart");
-      if (savedCart) setCart(JSON.parse(savedCart));
+      if (!menuLoadFailed.current) {
+        const savedCart = window.localStorage.getItem("tiffin-cart");
+        if (savedCart) setCart(JSON.parse(savedCart));
+      }
     } catch {
       // Ignore unavailable or invalid saved cart data.
     } finally {
@@ -237,10 +236,21 @@ export default function MenuPage() {
       return;
     }
 
+    if (!hasValidPhoneNumber(form.phone)) {
+      setFormError("Please enter a valid 10-digit phone number.");
+      return;
+    }
+
     setOrderConfirmationOpen(true);
   };
 
   const confirmOrder = async () => {
+    if (!hasValidPhoneNumber(form.phone)) {
+      setOrderConfirmationOpen(false);
+      setFormError("Please enter a valid 10-digit phone number.");
+      return;
+    }
+
     setSubmitting(true);
     setFormError(null);
     try {
@@ -285,6 +295,13 @@ export default function MenuPage() {
   if (confirmed) {
     return (
       <>
+        <MenuFetcher
+          url={`/api/product?pageNumber=1&pageSize=${MENU_PAGE_SIZE}&searchTerms=%25`}
+          enabled={!searchChanged.current}
+          onSuccess={handleInitialMenuLoaded}
+          onFailure={handleInitialMenuFailure}
+          onFinished={handleInitialMenuFinished}
+        />
         <Header cartCount={0} onCart={() => {}} />
         <main className="confirmation">
           <div className="check">✓</div>
@@ -304,6 +321,13 @@ export default function MenuPage() {
 
   return (
     <>
+      <MenuFetcher
+        url={`/api/product?pageNumber=1&pageSize=${MENU_PAGE_SIZE}&searchTerms=%25`}
+        enabled={!searchChanged.current}
+        onSuccess={handleInitialMenuLoaded}
+        onFailure={handleInitialMenuFailure}
+        onFinished={handleInitialMenuFinished}
+      />
       <Header
         cartCount={cartCount}
         onCart={() => setCartOpen(true)}
